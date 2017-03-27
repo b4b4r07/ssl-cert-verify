@@ -2,15 +2,20 @@ package main
 
 import (
 	"crypto/tls"
+	"flag"
 	"fmt"
 	"log"
-	"os"
 	"time"
 )
 
+var (
+	showDays = flag.Bool("show-days", false, "Show only remaining days")
+)
+
 func main() {
+	flag.Parse()
 	config := tls.Config{InsecureSkipVerify: false}
-	for _, site := range os.Args[1:] {
+	for _, site := range flag.Args() {
 		expireCheck(site, config)
 	}
 }
@@ -24,10 +29,14 @@ func expireCheck(site string, config tls.Config) {
 	defer conn.Close()
 	state := conn.ConnectionState()
 	for _, cert := range state.PeerCertificates {
-		diff := cert.NotAfter.Unix() - time.Now().Unix()
-		diff /= 24 * 60 * 60
-		if diff < 100 {
-			fmt.Printf("%s Certificate expires in %d days at %s\n", site, diff, cert.NotAfter)
+		days := cert.NotAfter.Unix() - time.Now().Unix()
+		days /= 24 * 60 * 60
+		if days < 100 {
+			if *showDays {
+				fmt.Println(days)
+			} else {
+				fmt.Printf("%s Certificate expires in %d days at %s\n", site, days, cert.NotAfter)
+			}
 		}
 	}
 }
